@@ -9,6 +9,7 @@ static int x11_screen;
 
 // VDPAU variables
 static VdpDevice vdp_device;
+static VdpDecoder vdp_decoder;
 
 // VDPAU functions (That will be dynamically linked)
 
@@ -149,7 +150,15 @@ VdpStatus init_vdpau() {
 }
 
 int init_decoder() {
-
+    VdpStatus retval = VDP_STATUS_OK;
+    retval = vdp_decoder_create(vdp_device,VDP_DECODER_PROFILE_H264_MAIN,
+                                1280,720,2,&vdp_decoder);
+    if (retval != VDP_STATUS_OK) {
+        fprintf(stderr,"Decoder create failed with error %d\n",retval);
+        return -1;
+    }
+    fprintf(stdout,"Decoder created\n");
+    return 0;
 }
 
 int main() {
@@ -169,4 +178,10 @@ int main() {
     }
     vdpret = vdp_get_information_string(&info);
     printf("%s\n",info);
+
+    retval = init_decoder();
+    if (retval) {
+        fprintf(stderr,"Failed to init decoder");
+        return -1;
+    }
 }
