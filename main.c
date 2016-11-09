@@ -4,12 +4,17 @@
 //#include <vdpau/vdpau.h>
 #include <vdpau/vdpau_x11.h>
 
+#define WIDTH 1280
+#define HEIGHT 720
+
 static Display *x11_display;
 static int x11_screen;
 
 // VDPAU variables
 static VdpDevice vdp_device;
 static VdpDecoder vdp_decoder;
+static VdpVideoSurface vdp_video_surface;
+static VdpOutputSurface vdp_output_surface;
 
 // VDPAU functions (That will be dynamically linked)
 
@@ -152,17 +157,46 @@ VdpStatus init_vdpau() {
 int init_decoder() {
     VdpStatus retval = VDP_STATUS_OK;
     retval = vdp_decoder_create(vdp_device,VDP_DECODER_PROFILE_H264_MAIN,
-                                1280,720,2,&vdp_decoder);
+                                WIDTH,HEIGHT,2,&vdp_decoder);
     if (retval != VDP_STATUS_OK) {
         fprintf(stderr,"Decoder create failed with error %d\n",retval);
-        return -1;
+        return retval;
     }
     fprintf(stdout,"Decoder created\n");
-    return 0;
+    return retval;
+}
+
+int init_surfaces() {
+    VdpStatus vdpret;
+    vdpret = vdp_video_surface_create(vdp_device, VDP_CHROMA_TYPE_420,
+                                      WIDTH,HEIGHT,&vdp_video_surface);
+    if (vdpret != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to create video surface\n");
+        return vdpret;
+    }
+
+    vdpret = vdp_output_surface_create(vdp_device, VDP_RGBA_FORMAT_B8G8R8A8,
+                                WIDTH,HEIGHT, &vdp_output_surface);
+    if (vdpret != VDP_STATUS_OK) {
+        fprintf(stderr, "Failed to create output surface: %d\n",vdpret);
+        return vdpret;
+    }
+    return vdpret;
+}
+
+char *generate_garbage_buffer(int width, int height) {
+    long i;
+    char *buf = malloc(width * height);
+    if (!buf) return NULL;
+    for (i = 0; i < (width * height); i++) {
+        buf[i] = (i & 0xFF);
+    }
+    return buf;
 }
 
 int main() {
     int retval;
+    char *garbage;
     const char *info;
     VdpStatus vdpret = VDP_STATUS_OK;
 
@@ -177,11 +211,21 @@ int main() {
         return -1;
     }
     vdpret = vdp_get_information_string(&info);
-    printf("%s\n",info);
+    fprintf(stdout,"%s\n",info);
 
     retval = init_decoder();
-    if (retval) {
+    if (retval != VDP_STATUS_OK) {
         fprintf(stderr,"Failed to init decoder");
         return -1;
     }
+
+    vdpret = init_surfaces();
+    if (vdpret != VDP_STATUS_OK) {
+        fprintf(stderr, "Failed to init surfaces");
+       return -1; 
+    }
+    fprintf(stdout,"VDP surfaces created\n");
+    garbage = generate_garbage_buffer(WIDTH,HEIGHT);
+    fprintf(stdout,"Generated some garbage\n");
+
 }
