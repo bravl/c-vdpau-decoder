@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xos.h>
 //#include <vdpau/vdpau.h>
 #include <vdpau/vdpau_x11.h>
 
@@ -9,12 +11,20 @@
 
 static Display *x11_display;
 static int x11_screen;
+static Window x11_window;
+static GC x11_gc;
 
 // VDPAU variables
 static VdpDevice vdp_device;
 static VdpDecoder vdp_decoder;
 static VdpVideoSurface vdp_video_surface;
 static VdpOutputSurface vdp_output_surface;
+static VdpPresentationQueueTarget vdp_target;
+static VdpPresentationQueue vdp_queue;
+static uint32_t vid_width, vid_height;
+static VdpChromaType vdp_chroma_type;
+static VdpVideoMixer vdp_video_mixer;
+
 
 // VDPAU functions (That will be dynamically linked)
 
@@ -60,12 +70,25 @@ VdpPresentationQueueQuerySurfaceStatus          *vdp_presentation_queue_query_su
 VdpGetInformationString                         *vdp_get_information_string;
 
 int init_x11() {
+    unsigned long black, white;
     x11_display = XOpenDisplay((char*)0); //open display 0
     if (!x11_display) {
         fprintf(stderr, "Failed to open XDisplay\n");
         return -1;
     }
     x11_screen = DefaultScreen(x11_display);
+    black = BlackPixel(x11_display, x11_screen);
+    white = WhitePixel(x11_display, x11_screen);
+    x11_window = XCreateSimpleWindow(x11_display, DefaultRootWindow(x11_display), 0, 0,
+                                300, 300, 5, black, white);
+    XSetStandardProperties(x11_display, x11_window, "VDPAU Test", "VDPAU", 
+                            None, NULL, 0, NULL);
+    XSelectInput(x11_display,x11_window,ExposureMask|ButtonPressMask|KeyPressMask);
+    x11_gc = XCreateGC(x11_display, x11_window, 0, NULL);
+    XSetBackground(x11_display, x11_gc, white);
+    XSetBackground(x11_display, x11_gc, black);
+    XClearWindow(x11_display, x11_window);    
+    XMapWindow(x11_display, x11_window);
     printf("X11 Display created\n");
     return 0;
 }
@@ -136,7 +159,7 @@ VdpStatus init_vdpau() {
 
     retval = vdp_device_create_x11(x11_display, x11_screen, &vdp_device,&vdp_get_proc_address);
     if (retval != VDP_STATUS_OK) {
-        fprintf(stderr, "Failed to create X11 device");
+        fprintf(stderr, "Failed to create X11 device\n");
         return -1;
     }
 
@@ -184,6 +207,54 @@ int init_surfaces() {
     return vdpret;
 }
 
+int init_video_mixer() {
+#define VDP_NUM_MIXER_PARAMETER 3
+#define MAX_NUM_FEATURES 6
+    VdpStatus vdpret;
+    int feature_count = 0;
+    VdpVideoMixerFeature features[MAX_NUM_FEATURES];
+    VdpBool features_enables[MAX_NUM_FEATURES];
+
+    static const VdpVideoMixerParameter parameters[VDP_NUM_MIXER_PARAMETER] = {
+        VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_WIDTH,
+        VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_HEIGHT,
+        VDP_VIDEO_MIXER_PARAMETER_CHROMA_TYPE
+    };
+
+    const void *const parameter_value[VDP_NUM_MIXER_PARAMETER] = {
+        &vid_width,
+        &vid_height,
+        &vdp_chroma_type 
+    };
+    vdpret = vdp_video_mixer_create(vdp_device, feature_count, features,
+                                    VDP_NUM_MIXER_PARAMETER, parameters,
+                                    parameter_value, &vdp_video_mixer);
+    if (vdpret != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to create mixer %d\n", vdpret);
+        return vdpret;
+    }
+    fprintf(stdout,"Created videomixer\n");
+    return vdpret;
+}
+
+int init_presentation_queue() {
+    VdpStatus vdpret;
+    vdpret = vdp_presentation_queue_target_create_x11(vdp_device, x11_window,
+                                                      &vdp_target);
+    if (vdpret != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to create x11 target queue\n");
+        return vdpret;
+    }
+
+    vdpret = vdp_presentation_queue_create(vdp_device, vdp_target, &vdp_queue);
+    if (vdpret != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to create queue\n");
+        return vdpret;
+    }
+    fprintf(stdout,"Created presentation queue\n");
+    return vdpret;
+}
+
 char *generate_garbage_buffer(int width, int height) {
     long i;
     char *buf = malloc(width * height);
@@ -195,7 +266,10 @@ char *generate_garbage_buffer(int width, int height) {
 }
 
 int main() {
+    XEvent event;
     int retval;
+    vid_width = 300;
+    vid_height = 300;
     char *garbage;
     const char *info;
     VdpStatus vdpret = VDP_STATUS_OK;
@@ -222,10 +296,31 @@ int main() {
     vdpret = init_surfaces();
     if (vdpret != VDP_STATUS_OK) {
         fprintf(stderr, "Failed to init surfaces");
-       return -1; 
+        return -1; 
     }
     fprintf(stdout,"VDP surfaces created\n");
     garbage = generate_garbage_buffer(WIDTH,HEIGHT);
     fprintf(stdout,"Generated some garbage\n");
 
+    vdpret = init_video_mixer();
+    if (vdpret != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to create video mixer");
+        return -1;
+    }
+
+    vdpret = init_presentation_queue();
+    if (vdpret != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to presentation queue\n");
+        return -1;
+    } 
+
+    while(1) {
+        XNextEvent(x11_display, &event);
+        if (event.type == KeyPress) {
+            XFreeGC(x11_display, x11_gc);
+            XDestroyWindow(x11_display, x11_window);
+            XCloseDisplay(x11_display);
+            exit(0);
+        }
+    }
 }
