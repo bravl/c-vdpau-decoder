@@ -6,6 +6,8 @@
 //#include <vdpau/vdpau.h>
 #include <vdpau/vdpau_x11.h>
 
+#include "vdpau_layer.h"
+
 #define WIDTH 1280
 #define HEIGHT 720
 
@@ -266,7 +268,7 @@ char *generate_garbage_buffer(int width, int height) {
 }
 
 int main() {
-    XEvent event;
+    /*XEvent event;
     int retval;
     vid_width = 300;
     vid_height = 300;
@@ -322,5 +324,7 @@ int main() {
             XCloseDisplay(x11_display);
             exit(0);
         }
-    }
+    }*/
+
+    init_vpdau_ctx();
 }
