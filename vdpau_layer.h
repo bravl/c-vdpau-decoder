@@ -6,9 +6,7 @@
 
 #include <vdpau/vdpau_x11.h>
 
-static uint32_t width, height;
-static double ratio;
-
+#define NUMBER_OF_SURFACES 22
 
 typedef struct {
     VdpGetErrorString *vdp_get_error_string;
@@ -145,7 +143,12 @@ typedef struct {
 } vdp_ctx;
 
 typedef struct {
-    
+    uint32_t width, height;
+    double ratio;
+    vdp_ctx *ctx;
+    VdpDecoder vdp_decoder;
+    VdpDecoderProfile profile;
+    VdpVideoSurface surfaces[NUMBER_OF_SURFACES];
 } vdp_decoder_ctx;
 
 //Initialise VDPAU backend

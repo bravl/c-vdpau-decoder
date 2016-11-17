@@ -25,7 +25,10 @@ h264_frame *create_h264_frame(char **buffer) {
         fprintf(stdout,"Failed to create data\n");
         return NULL;
     }
-    
+    if (!memcpy(nf->data, *buffer, nf->datalen)) {
+        fprintf(stdout,"Failed to memcpy data\n");
+        return NULL;
+    }   
     *buffer += nf->datalen;
 
     return nf;

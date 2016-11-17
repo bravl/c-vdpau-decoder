@@ -32,16 +32,24 @@ int main() {
      
     fd = open("sample.dat",O_RDONLY);
     fstat(fd,&sb);
-    memblk = mmap(NULL,sb.st_size, PROT_WRITE, MAP_PRIVATE, fd, 0);
+    memblk = mmap(0,sb.st_size, PROT_WRITE, MAP_PRIVATE, fd, 0);
     if (memblk == MAP_FAILED) {
         fprintf(stderr,"Failed to create mmap\n");
         return -1;
     }
-    memblk += H264_INFO_HDR_OFFSET;
+
+    // Parse width 4b, height 4b, ratio 8b, profile 4b
+
+    memblk += H264_INFO_HDR_OFSET;
     int i;
-    for (i = 0; i < FRAMES_IN_SAMPLE; i++) {
+    for (i = 0; i < FRAMES_IN_SAMPLE; i++) 
         frames[i]  = create_h264_frame(&memblk); 
         fprintf(stdout,"Frame size: %d\n",frames[i]->datalen);
 
     }
+
+    if (!munmap(memblk,sb.st_size)) {
+        fprintf(stderr,"Failed to unmmap file\n");
+    }
+    fprintf(stdout,"Unmmap'd file\n");
 }
