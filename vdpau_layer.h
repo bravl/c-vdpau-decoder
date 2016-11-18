@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <vdpau/vdpau_x11.h>
 
@@ -151,10 +152,24 @@ typedef struct {
     VdpVideoSurface surfaces[NUMBER_OF_SURFACES];
 } vdp_decoder_ctx;
 
+typedef struct {
+    VdpVideoMixer vdp_mixer;
+    VdpVideoMixerFeature mixer_features[6];
+    VdpChromaType chroma;
+} vdp_mixer_ctx;
+
 //Initialise VDPAU backend
 vdp_ctx *init_vdpau_ctx(Display *disp, int screen);
 
 //Initialise VDPAU functions
 vdp_functable *init_vdpau_functions(vdp_ctx *ctx);
 
+//Initialise VDPAU decoder
+vdp_decoder_ctx *init_vdpau_decoder(vdp_ctx *ctx, char **buffer);
+
+//Initialise VPDAU mixer
+vdp_mixer_ctx *init_vdpau_mixer(vdp_decoder_ctx *ctx);
+
+//Initialise VDPAU surfaces
+int init_vdpau_surfaces(vdp_decoder_ctx *dec_ctx);
 #endif

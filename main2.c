@@ -17,6 +17,8 @@ int main() {
     Display *disp;
     int screen;
     vdp_ctx *vdpau_ctx;
+    vdp_decoder_ctx *vdpau_dec_ctx;
+    vdp_mixer_ctx *vdpau_mixer_ctx;
     char *memblk;
 
     h264_frame *frames[FRAMES_IN_SAMPLE];
@@ -39,13 +41,25 @@ int main() {
     }
 
     // Parse width 4b, height 4b, ratio 8b, profile 4b
-
-    memblk += H264_INFO_HDR_OFSET;
+    vdpau_dec_ctx = init_vdpau_decoder(vdpau_ctx, &memblk);
+    if (!vdpau_dec_ctx) {
+        fprintf(stdout,"Failed to create decoder\n");
+        return -1;
+    }
+    fprintf(stdout,"Created decoder for %ld x %ld : %lf\n",
+            vdpau_dec_ctx->width, vdpau_dec_ctx->height,
+            vdpau_dec_ctx->ratio);
+    init_vdpau_surfaces(vdpau_dec_ctx);
     int i;
-    for (i = 0; i < FRAMES_IN_SAMPLE; i++) 
+    for (i = 0; i < FRAMES_IN_SAMPLE; i++) { 
         frames[i]  = create_h264_frame(&memblk); 
-        fprintf(stdout,"Frame size: %d\n",frames[i]->datalen);
-
+        //fprintf(stdout,"Frame size: %d\n",frames[i]->datalen);
+    }
+    
+    vdpau_mixer_ctx = init_vdpau_mixer(vdpau_dec_ctx);
+    if (!vdpau_mixer_ctx) {
+        fprintf(stderr,"Failed to create mixer\n");
+        return -1;
     }
 
     if (!munmap(memblk,sb.st_size)) {

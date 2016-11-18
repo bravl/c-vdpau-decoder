@@ -44,3 +44,96 @@ vdp_functable *init_vdpau_functions(vdp_ctx *ctx) {
     printf("%s %d\n",info,version);
     return table;
 }
+
+vdp_decoder_ctx *init_vdpau_decoder(vdp_ctx *ctx, char **buffer) {
+    VdpStatus status = VDP_STATUS_OK;
+    vdp_decoder_ctx *dec_ctx = malloc(sizeof(vdp_decoder_ctx));
+    if (!dec_ctx) {
+        fprintf(stderr,"Failed to allocate decoder context\n");
+        goto error;
+    }
+    if (!memcpy(&dec_ctx->width, *buffer, 4)) {
+        fprintf(stderr,"Failed to copy width\n");
+        goto error;
+    }
+    *buffer += 4;
+
+    if (!memcpy(&dec_ctx->height, *buffer, 4)) {
+        fprintf(stderr,"Failed to copy height\n");
+        goto error;
+    }
+    *buffer +=4;
+
+    if (!memcpy(&dec_ctx->ratio, *buffer, 8)) {
+        fprintf(stderr,"Failed to copy ratio\n");
+        goto error;
+    }
+    *buffer += 8;
+
+     if (!memcpy(&dec_ctx->profile, *buffer, 4)) {
+        fprintf(stderr,"Failed to copy height\n");
+        goto error;
+    }
+    *buffer +=4;
+    
+    status = ctx->table->vdp_decoder_create(ctx->vdp_device, dec_ctx->profile, dec_ctx->width,
+                                            dec_ctx->height, 16, &dec_ctx->vdp_decoder); 
+    if (status != VDP_STATUS_OK) {
+        fprintf(stderr,"Oeps, something went wrong\n");
+        goto error;
+    }
+    dec_ctx->ctx = ctx;
+    return dec_ctx;
+error:
+    if (dec_ctx) free(dec_ctx);
+    return NULL;
+}
+
+int init_vdpau_surfaces(vdp_decoder_ctx *dec_ctx) {
+    int i;
+    VdpStatus status = VDP_STATUS_OK;
+
+    for (i = 0; i < NUMBER_OF_SURFACES; i++) {
+        dec_ctx->surfaces[i] = VDP_INVALID_HANDLE;
+        status = dec_ctx->ctx->table->vdp_video_surface_create(dec_ctx->ctx->vdp_device,
+                                                         VDP_CHROMA_TYPE_420, dec_ctx->width,
+                                                         dec_ctx->height, &dec_ctx->surfaces[i]);
+        if (status != VDP_STATUS_OK) {
+            fprintf(stderr,"Failed to create surface\n");
+            return -1;
+        }
+    }
+    fprintf(stdout,"Created surfaces\n");
+    return 0;
+}
+
+vdp_mixer_ctx *init_vdpau_mixer(vdp_decoder_ctx *ctx) {
+    VdpStatus status = VDP_STATUS_OK;
+    vdp_mixer_ctx *mixer = malloc(sizeof(vdp_mixer_ctx));
+    if (!mixer) {
+        fprintf(stderr,"Failed to allocate mixer\n");
+        return NULL;
+    }
+    mixer->mixer_features[0] = VDP_VIDEO_MIXER_FEATURE_NOISE_REDUCTION;
+    mixer->mixer_features[1] = VDP_VIDEO_MIXER_FEATURE_SHARPNESS;
+    mixer->mixer_features[2] = VDP_VIDEO_MIXER_FEATURE_DEINTERLACE_TEMPORAL;
+    mixer->mixer_features[3] = VDP_VIDEO_MIXER_FEATURE_DEINTERLACE_TEMPORAL_SPATIAL;
+    mixer->mixer_features[4] = VDP_VIDEO_MIXER_FEATURE_INVERSE_TELECINE;
+    VdpVideoMixerParameter params[] = { VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_WIDTH, 
+                                        VDP_VIDEO_MIXER_PARAMETER_VIDEO_SURFACE_HEIGHT,
+                                        VDP_VIDEO_MIXER_PARAMETER_CHROMA_TYPE, 
+                                        VDP_VIDEO_MIXER_PARAMETER_LAYERS };
+    mixer->chroma = VDP_CHROMA_TYPE_420;
+    int num_layers = 3;
+    void const *param_values[] = {&ctx->width, &ctx->height, &mixer->chroma,&num_layers};
+    
+    status = ctx->ctx->table->vdp_video_mixer_create(ctx->ctx->vdp_device, 5, mixer->mixer_features,
+                                                     4, params, param_values, &mixer->vdp_mixer);
+    if (status != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to create mixer\n");
+        return NULL;
+    }
+    fprintf(stdout,"Video mixer created\n");
+
+    return mixer;
+}
