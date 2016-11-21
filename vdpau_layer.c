@@ -128,7 +128,16 @@ VdpStatus init_vdpau_output(vdp_decoder_ctx *dctx) {
         fprintf(stdout,"Failed to create queue target X11\n");
         return status;
     }  
+    fprintf(stdout,"X11 Presentation queue target created\n");
 
+    vft->vdp_presentation_queue_create(dctx->ctx->vdp_device, 
+                                       dctx->ctx->queue_target,
+                                       &dctx->ctx->queue);
+    if (status != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to create queue\n");
+        return status;
+    }
+    fprintf(stdout,"Presentation queue created\n"); 
     return status;
 }
 

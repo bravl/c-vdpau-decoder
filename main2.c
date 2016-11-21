@@ -13,6 +13,10 @@
 
 //TODO: Fix nasty linked structs create better solution
 
+VdpVideoSurface getNextFrame(h264_frame *frame, vdp_decoder_ctx *dec) {
+    
+}
+
 int main() {
     XEvent event;
     int fd;
@@ -94,9 +98,17 @@ int main() {
      
     if (!munmap(memblk,sb.st_size)) {
         fprintf(stderr,"Failed to unmmap file\n");
-    }
-     
+    } 
     fprintf(stdout,"Unmmap'd file\n");
+    
+    VdpRect vid_source = { 0, 0, vdpau_dec_ctx->width, vdpau_dec_ctx->height};
+    VdpRect out_dest = { 0, 0, vdpau_dec_ctx->width, vdpau_dec_ctx->height };
+   
+    /*status = vdpau_ctx->table->vdp_video_mixer_render(vdpau_mixer_ctx->vdp_mixer,
+                                                      VDP_INVALID_HANDLE, 0,
+                                                      VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
+                                                      0, 0,  */
+
     while(1){
         XNextEvent(disp, &event);
         if(event.type == KeyPress){

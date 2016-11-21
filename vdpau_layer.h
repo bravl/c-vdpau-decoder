@@ -10,6 +10,8 @@
 #include <X11/Xos.h>
 #include <vdpau/vdpau_x11.h>
 
+#include "h264_layer.h"
+
 #define NUMBER_OF_SURFACES 22
 
 typedef struct {
@@ -182,4 +184,5 @@ vdp_mixer_ctx *init_vdpau_mixer(vdp_decoder_ctx *ctx);
 VdpStatus init_vdpau_surfaces(vdp_decoder_ctx *dec_ctx);
 
 VdpStatus init_vdpau_output(vdp_decoder_ctx *dec);
+
 #endif
