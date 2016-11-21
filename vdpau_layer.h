@@ -141,6 +141,9 @@ typedef struct {
     VdpDevice vdp_device;
     VdpGetProcAddress *vdp_get_proc_address;
     vdp_functable *table;
+    VdpOutputSurface display_surface;
+    VdpPresentationQueueTarget queue_target;
+    VdpPresentationQueue queue;
 } vdp_ctx;
 
 typedef struct {
@@ -171,5 +174,7 @@ vdp_decoder_ctx *init_vdpau_decoder(vdp_ctx *ctx, char **buffer);
 vdp_mixer_ctx *init_vdpau_mixer(vdp_decoder_ctx *ctx);
 
 //Initialise VDPAU surfaces
-int init_vdpau_surfaces(vdp_decoder_ctx *dec_ctx);
+VdpStatus init_vdpau_surfaces(vdp_decoder_ctx *dec_ctx);
+
+VdpStatus init_vdpau_output(vdp_decoder_ctx *dec);
 #endif

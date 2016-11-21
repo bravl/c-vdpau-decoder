@@ -89,7 +89,7 @@ error:
     return NULL;
 }
 
-int init_vdpau_surfaces(vdp_decoder_ctx *dec_ctx) {
+VdpStatus init_vdpau_surfaces(vdp_decoder_ctx *dec_ctx) {
     int i;
     VdpStatus status = VDP_STATUS_OK;
 
@@ -105,6 +105,22 @@ int init_vdpau_surfaces(vdp_decoder_ctx *dec_ctx) {
     }
     fprintf(stdout,"Created surfaces\n");
     return 0;
+}
+
+VdpStatus init_vdpau_output(vdp_decoder_ctx *dctx) {
+    VdpStatus status = VDP_STATUS_OK;
+    vdp_functable *vft;
+    vft = dctx->ctx->table;
+
+    status = vft->vdp_output_surface_create(dctx->ctx->vdp_device, 
+                                            VDP_RGBA_FORMAT_B8G8R8A8, 
+                                            dctx->width, dctx->height, 
+                                            &dctx->ctx->display_surface);
+    if (status != VDP_STATUS_OK) {
+        fprintf(stdout,"Failed to create output surface\n");
+        return status;
+    } 
+    return status;
 }
 
 vdp_mixer_ctx *init_vdpau_mixer(vdp_decoder_ctx *ctx) {

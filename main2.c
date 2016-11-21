@@ -11,6 +11,8 @@
 
 #define FRAMES_IN_SAMPLE 25
 
+//TODO: Fix nasty linked structs create better solution
+
 int main() {
     int fd;
     struct stat sb;
@@ -20,6 +22,7 @@ int main() {
     vdp_decoder_ctx *vdpau_dec_ctx;
     vdp_mixer_ctx *vdpau_mixer_ctx;
     char *memblk;
+    VdpStatus status = VDP_STATUS_OK;
 
     h264_frame *frames[FRAMES_IN_SAMPLE];
 
@@ -49,7 +52,18 @@ int main() {
     fprintf(stdout,"Created decoder for %ld x %ld : %lf\n",
             vdpau_dec_ctx->width, vdpau_dec_ctx->height,
             vdpau_dec_ctx->ratio);
-    init_vdpau_surfaces(vdpau_dec_ctx);
+   
+    status = init_vdpau_output(vdpau_dec_ctx);
+    if (status != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to create vdpau output\n");
+        return -1;
+    }
+    fprintf(stdout, "Created vdpau output stuff\n");
+    status = init_vdpau_surfaces(vdpau_dec_ctx);
+    if (status != VDP_STATUS_OK) {
+        fprintf(stderr,"Failed to initialize surfaces\n");
+        return -1;
+    }
     int i;
     for (i = 0; i < FRAMES_IN_SAMPLE; i++) { 
         frames[i]  = create_h264_frame(&memblk); 

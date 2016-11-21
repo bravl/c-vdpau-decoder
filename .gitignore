@@ -2,3 +2,4 @@ cscope.out
 *.swp
 .vscode
 vdpau
+ctags
