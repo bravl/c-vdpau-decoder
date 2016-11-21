@@ -119,7 +119,16 @@ VdpStatus init_vdpau_output(vdp_decoder_ctx *dctx) {
     if (status != VDP_STATUS_OK) {
         fprintf(stdout,"Failed to create output surface\n");
         return status;
-    } 
+    }
+
+    status = vft->vdp_presentation_queue_target_create_x11(dctx->ctx->vdp_device,
+                                            dctx->ctx->win, 
+                                            &dctx->ctx->queue_target);
+    if (status != VDP_STATUS_OK) {
+        fprintf(stdout,"Failed to create queue target X11\n");
+        return status;
+    }  
+
     return status;
 }
 

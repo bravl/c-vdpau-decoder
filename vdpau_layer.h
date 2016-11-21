@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xos.h>
 #include <vdpau/vdpau_x11.h>
 
 #define NUMBER_OF_SURFACES 22
@@ -138,6 +141,8 @@ static int refs[] = {
 typedef struct {
     Display *display;
     int screen;
+    Window win;
+    GC gc;
     VdpDevice vdp_device;
     VdpGetProcAddress *vdp_get_proc_address;
     vdp_functable *table;
