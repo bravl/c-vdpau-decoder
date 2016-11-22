@@ -160,6 +160,7 @@ typedef struct {
     VdpDecoder vdp_decoder;
     VdpDecoderProfile profile;
     VdpVideoSurface surfaces[NUMBER_OF_SURFACES];
+    int refframes[25];
 } vdp_decoder_ctx;
 
 typedef struct {

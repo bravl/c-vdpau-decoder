@@ -13,11 +13,45 @@
 
 //TODO: Fix nasty linked structs create better solution
 
-VdpVideoSurface getNextFrame(h264_frame *frame, vdp_decoder_ctx *dec) {
+static int frame_count;
+static int surface_count;
+
+VdpVideoSurface getNextFrame(h264_frame **frames, vdp_decoder_ctx *dec) {
+    h264_frame *frame = frames[frame_count++];
+    vdp_functable *vft = dec->ctx->table;
+    VdpPictureInfoH264 info = frame->info;
+    int i, k = frame_count -1;
+    for (i=0; i < 16; i++) {
+        if (info.referenceFrames[i].surface != VDP_INVALID_HANDLE) {
+            info.referenceFrames[i].surface = 
+                dec->refframes[info.referenceFrames[i].surface]; 
+        } 
+    }
+
+    VdpVideoSurface current = dec->surfaces[surface_count];
+
+    VdpBitstreamBuffer vbit;
+    vbit.struct_version = VDP_BITSTREAM_BUFFER_VERSION;
+    vbit.bitstream = frame->data;
+    vbit.bitstream_bytes = frame->datalen;
     
+    VdpStatus st = vft->vdp_decoder_render(dec->vdp_decoder, current,
+                                           (VdpPictureInfo*)&info, 1, &vbit); 
+    dec->refframes[k] = current;
+    ++surface_count;
+    if (surface_count >= NUMBER_OF_SURFACES)
+        surface_count = 0;
+    if (frame_count >= FRAMES_IN_SAMPLE) {
+        frame_count = 0;
+        surface_count = 0;
+    }
+
+    return current;
 }
 
 int main() {
+    frame_count = 0;
+    surface_count = 0;
     XEvent event;
     int fd;
     struct stat sb;
@@ -101,15 +135,23 @@ int main() {
     } 
     fprintf(stdout,"Unmmap'd file\n");
     
-    VdpRect vid_source = { 0, 0, vdpau_dec_ctx->width, vdpau_dec_ctx->height};
-    VdpRect out_dest = { 0, 0, vdpau_dec_ctx->width, vdpau_dec_ctx->height };
-   
-    /*status = vdpau_ctx->table->vdp_video_mixer_render(vdpau_mixer_ctx->vdp_mixer,
-                                                      VDP_INVALID_HANDLE, 0,
-                                                      VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
-                                                      0, 0,  */
+    vdp_functable *vft = vdpau_ctx->table;
 
-    while(1){
+    while(1) {
+        
+        VdpVideoSurface tmp = getNextFrame(frames, vdpau_dec_ctx);
+
+        VdpRect vid_source = { 0, 0, vdpau_dec_ctx->width, vdpau_dec_ctx->height};
+        VdpRect out_dest = { 0, 0, vdpau_dec_ctx->width, vdpau_dec_ctx->height };
+   
+        status = vdpau_ctx->table->vdp_video_mixer_render(vdpau_mixer_ctx->vdp_mixer,
+                                                VDP_INVALID_HANDLE, 0,
+                                                VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
+                                                0, 0, tmp, 0, 0, &vid_source,
+                                                vdpau_ctx->display_surface,
+                                                &out_dest, &out_dest, 0, NULL);
+        vft->vdp_presentation_queue_display(vdpau_ctx->queue, 
+                                            vdpau_ctx->display_surface, 0,0,0);
         XNextEvent(disp, &event);
         if(event.type == KeyPress){
             XFreeGC(disp, vdpau_ctx->gc);
